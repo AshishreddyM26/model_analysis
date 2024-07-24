@@ -1,10 +1,10 @@
 import numpy as np
 import pandas as pd
-from ultralytics import YOLO
 import supervision as sv
+from ultralytics import YOLO
+import matplotlib.pyplot as plt
 
 class ByteTrack_CropCounter:
-    
     def __init__(self):
         # Initialize constants
         self.horizontal_fov = 118  # degrees
@@ -43,8 +43,7 @@ class ByteTrack_CropCounter:
     def detect_results(self, set, model, video_source):
         weight = f"C:/Users/ashis/Desktop/THESIS/DT_flow/resources/weights/set{set}/{model}.pt"
         model = YOLO(weight)
-        results = model.predict(source=video_source, project='files/roi_detection/custom_botsort_detections', conf=.4, verbose=False,
-                                save=True, save_frames=True, line_width=2)
+        results = model.predict(source=video_source, conf=.4, verbose=False, save=False)
         return results
 
     def ret_gt_cropcount(self, df, y1, y2):
@@ -84,7 +83,6 @@ class ByteTrack_CropCounter:
         return results
 
     def rows_setA(self, wc_gt):
-        
         row1 = wc_gt[(wc_gt['CenterX'] >= 350) & (wc_gt['CenterX'] <= 725)]
         row2 = wc_gt[(wc_gt['CenterX'] >= 705) & (wc_gt['CenterX'] <= 1100)]
         row3 = wc_gt[(wc_gt['CenterX'] >= 1100) & (wc_gt['CenterX'] <= 1600)]
@@ -103,7 +101,6 @@ class ByteTrack_CropCounter:
         return row1, row2, row3, row4, row5, row6, row7, row8
 
     def rows_setB(self, wc_gt):
-        
         row1 = wc_gt[(wc_gt['CenterX'] >= 350) & (wc_gt['CenterX'] <= 725)]
         row2 = wc_gt[(wc_gt['CenterX'] >= 725) & (wc_gt['CenterX'] <= 1100)]
         row3 = wc_gt[(wc_gt['CenterX'] >= 1100) & (wc_gt['CenterX'] <= 1600)]
@@ -122,7 +119,6 @@ class ByteTrack_CropCounter:
         return row1, row2, row3, row4, row5, row6, row7, row8
 
     def gen_gt_results(self, model, type):
-        
         gt_counts_results = {}
         df = pd.read_csv(f'C:/Users/ashis/Desktop/THESIS/DT_flow/resources/dataframes{type}/{model}_gt.csv')
         
@@ -135,7 +131,6 @@ class ByteTrack_CropCounter:
         return gt_counts_results
 
     def get_avg_accuracy(self, accuracy_results1, accuracy_results2):
-        
         average_results = {}
         for key in accuracy_results1:
             list_a = accuracy_results1[key]
@@ -145,7 +140,6 @@ class ByteTrack_CropCounter:
         return average_results
 
     def ret_frame_dets(self, tensor, i):
-        
         xyxy = tensor[i].boxes.xyxy
         conf = tensor[i].boxes.conf
         df1 = pd.DataFrame(xyxy)
@@ -155,7 +149,6 @@ class ByteTrack_CropCounter:
         return final_df
 
     def ret_trimmed_df(self, df_appended, xmin, xmax, y1, y2):
-        
         trim_df = df_appended[((((df_appended.iloc[:, 0] + df_appended.iloc[:, 2]) / 2 >= xmin) &
                                ((df_appended.iloc[:, 0] + df_appended.iloc[:, 2]) / 2 <= xmax)) &
                               (((df_appended.iloc[:, 1] + df_appended.iloc[:, 3]) / 2 >= y1) &
@@ -165,7 +158,6 @@ class ByteTrack_CropCounter:
         return (xyxy, confidence)
 
     def get_count(self, window_listup):
-        
         tracker = sv.ByteTrack(minimum_matching_threshold=.8, track_activation_threshold=.5, lost_track_buffer=24)
         id = []
         count = []
@@ -204,7 +196,6 @@ class ByteTrack_CropCounter:
         return results
 
     def count_crops_rows_78(self, y1_bounds, y2_bounds, xmin, xmax, limit, model):
-        
         count_in_row = []
         if limit > 20:
             for ymin, ymax in zip(y1_bounds[:limit], y2_bounds[:limit]):
@@ -244,5 +235,54 @@ class ByteTrack_CropCounter:
                     results_window.append(frame_detections)
                 crops_count2 = self.get_count(results_window)
                 count_in_row.append(crops_count2)
-                
         return count_in_row
+
+    def count_crops_for_model(self, model_name, results, xmin_limits, xmax_limits, y1, y2):
+        row16 = self.count_crops_rows_1to6(y1, y2, xmin_limits[:6], xmax_limits[:6], results)
+        row7 = self.count_crops_rows_78(y1, y2, xmin_limits[6], xmax_limits[6], 25 if model_name == "1" else 21, results)
+        row8 = self.count_crops_rows_78(y1, y2, xmin_limits[7], xmax_limits[7], 15, results)
+        row16['row7'] = row7
+        row16['row8'] = row8
+        return row16
+
+    def plot_accuracy9(accuracy_results_list, model_names, vertical_fov):
+        
+        threshold = 95  # Set the threshold for accuracy
+        fig, axs = plt.subplots(1, 8, figsize=(20, 5))  # Create 1 row and 8 columns of subplots
+
+        # Define specific colors for each model
+        colors = ['orange', 'blue', 'cyan', 'magenta', 'green']
+
+        if len(model_names) > len(colors):
+            raise ValueError("Not enough unique colors defined for the number of models.")
+
+        for i in range(8):
+            for accuracy_results, model_name, color in zip(accuracy_results_list, model_names, colors):
+                accuracy_key = f'accuracy{i+1}'
+                data_x = vertical_fov
+                data_y = accuracy_results[accuracy_key]
+
+                # Plot line segments individually
+                for j in range(len(data_x) - 1):
+                    segment_color = 'red' if data_y[j] >= threshold else color
+                    axs[i].plot([data_x[j], data_x[j+1]], [data_y[j], data_y[j+1]], marker='o', markersize=.7, color=segment_color, linewidth=0.3, label=model_name if j == 0 else "")
+
+                # Draw a horizontal line at the threshold value
+                axs[i].axhline(y=threshold, color='red', linestyle='--', linewidth=.5)
+
+            axs[i].set_title(f'Row{i+1} ({horz_va1[i]}°, {horz_va2[i]}°)', fontsize=10)  # Set the font size here
+            axs[i].set_ylim(0, 105)
+            axs[i].grid()
+
+        axs[3].set_xlabel('Vertical FOV (degrees°)')      
+        axs[0].set_ylabel('Accuracy')  
+
+        # Create a legend for the models and place it above the subplots
+        handles = [plt.Line2D([0], [0], color=color, lw=1) for color in colors[:len(model_names)]]
+        labels = model_names
+
+        fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 1), ncol=len(model_names))
+        
+        plt.tight_layout()
+        plt.subplots_adjust(top=0.85)  # Adjust the top to make room for the legend
+        plt.show()
