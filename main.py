@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from ultralytics import YOLO  # Assuming YOLO is a class from the ultralytics library
+from ultralytics import YOLO
 import supervision as sv
 
 class ByteTrack_CropCounter:
@@ -76,13 +76,71 @@ class ByteTrack_CropCounter:
             results[f'accuracy{row_idx}'] = accuracies
         return results
 
+    def rows_setA(self, wc_gt):
+        """
+        Divide the data into rows based on specified conditions for set A.
+
+        Parameters:
+            wc_gt (DataFrame): DataFrame containing the data to be divided.
+
+        Returns:
+            list: List of DataFrames, each representing a row in set A.
+        """
+        row1 = wc_gt[(wc_gt['CenterX'] >= 350) & (wc_gt['CenterX'] <= 725)]
+        row2 = wc_gt[(wc_gt['CenterX'] >= 705) & (wc_gt['CenterX'] <= 1100)]
+        row3 = wc_gt[(wc_gt['CenterX'] >= 1100) & (wc_gt['CenterX'] <= 1600)]
+        row4 = wc_gt[(wc_gt['CenterX'] >= 1600) & (wc_gt['CenterX'] <= 2150)]
+        row5 = wc_gt[(wc_gt['CenterX'] >= 2150) & (wc_gt['CenterX'] <= 2600)]
+        row6 = wc_gt[(wc_gt['CenterX'] >= 2700) & (wc_gt['CenterX'] <= 3050)]
+        row7 = wc_gt[
+            ((wc_gt['CenterX'] >= 3050) & (wc_gt['CenterX'] <= 3390) & (wc_gt['CenterY'] <= 2160) & (wc_gt['CenterY'] > 1500)) |
+            ((wc_gt['CenterX'] >= 3050) & (wc_gt['CenterX'] <= 3500) & (wc_gt['CenterY'] <= 1500) & (wc_gt['CenterY'] > 0))
+        ]
+        row8 = wc_gt[
+            ((wc_gt['CenterX'] >= 3350) & (wc_gt['CenterX'] <= 3840) & (wc_gt['CenterY'] <= 2160) & (wc_gt['CenterY'] > 1500)) |
+            ((wc_gt['CenterX'] >= 3490) & (wc_gt['CenterX'] <= 3840) & (wc_gt['CenterY'] <= 1500) & (wc_gt['CenterY'] > 0))
+        ]
+
+        return row1, row2, row3, row4, row5, row6, row7, row8
+
+
+    def rows_setB(self, wc_gt):
+        """
+        Divide the data into rows based on specified conditions for set B.
+
+        Parameters:
+            wc_gt (DataFrame): DataFrame containing the data to be divided.
+
+        Returns:
+            list: List of DataFrames, each representing a row in set B.
+        """
+        row1 = wc_gt[(wc_gt['CenterX'] >= 350) & (wc_gt['CenterX'] <= 725)]
+        row2 = wc_gt[(wc_gt['CenterX'] >= 725) & (wc_gt['CenterX'] <= 1100)]
+        row3 = wc_gt[(wc_gt['CenterX'] >= 1100) & (wc_gt['CenterX'] <= 1600)]
+        row4 = wc_gt[(wc_gt['CenterX'] >= 1600) & (wc_gt['CenterX'] <= 2150)]
+        row5 = wc_gt[(wc_gt['CenterX'] >= 2150) & (wc_gt['CenterX'] <= 2600)]
+        row6 = wc_gt[(wc_gt['CenterX'] >= 2700) & (wc_gt['CenterX'] <= 3050)]
+        row7 = wc_gt[
+            ((wc_gt['CenterX'] >= 3050) & (wc_gt['CenterX'] <= 3390) & (wc_gt['CenterY'] <= 2160) & (wc_gt['CenterY'] > 1500)) |
+            ((wc_gt['CenterX'] >= 3050) & (wc_gt['CenterX'] <= 3500) & (wc_gt['CenterY'] <= 1500) & (wc_gt['CenterY'] > 0))
+        ]
+        row8 = wc_gt[
+            ((wc_gt['CenterX'] >= 3370) & (wc_gt['CenterX'] <= 3840) & (wc_gt['CenterY'] <= 2160) & (wc_gt['CenterY'] > 1500)) |
+            ((wc_gt['CenterX'] >= 3490) & (wc_gt['CenterX'] <= 3840) & (wc_gt['CenterY'] <= 1500) & (wc_gt['CenterY'] > 0))
+        ]
+
+        return row1, row2, row3, row4, row5, row6, row7, row8
+
     def gen_gt_results(self, model, type):
+        
         gt_counts_results = {}
         df = pd.read_csv(f'C:/Users/ashis/Desktop/THESIS/DT_flow/resources/dataframes{type}/{model}_gt.csv')
+        
         if type == 'A':
-            row1, row2, row3, row4, row5, row6, row7, row8 = det_utils.rows_setA(df)
+            row1, row2, row3, row4, row5, row6, row7, row8 = rows_setA(df)
         else:
-            row1, row2, row3, row4, row5, row6, row7, row8 = det_utils.rows_setB(df)
+            row1, row2, row3, row4, row5, row6, row7, row8 = rows_setB(df)
+            
         gt_df = [row1, row2, row3, row4, row5, row6, row7, row8]
         gt_counts_results = self.process_gt_counts(gt_df, y1, y2)
         return gt_counts_results
