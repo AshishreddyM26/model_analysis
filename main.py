@@ -5,11 +5,15 @@ import supervision as sv
 
 class ByteTrack_CropCounter:
     
-    def __init__(self, width, height, happ, vertical_fov):
-        self.width = width
-        self.height = height
-        self.happ = happ
-        self.vertical_fov = vertical_fov
+
+    def __init__(self):
+        # Initialize constants
+        self.horizontal_fov = 118  # degrees
+        self.vertical_fov = 69.2  # degrees
+        self.width = 3840  # pixels
+        self.height = 2160  # pixels
+        self.happ = np.radians(self.horizontal_fov) / self.width  # Horizontal angle per pixel in radians
+        self.vapp = np.radians(self.vertical_fov) / self.height  # Vertical angle per pixel in radians
 
     def calculate_angles(self, xc, yc):
         xcs = np.array(xc)
@@ -102,7 +106,6 @@ class ByteTrack_CropCounter:
         ]
 
         return row1, row2, row3, row4, row5, row6, row7, row8
-
 
     def rows_setB(self, wc_gt):
         """
@@ -253,4 +256,3 @@ class ByteTrack_CropCounter:
                 crops_count2 = self.get_count(results_window)
                 count_in_row.append(crops_count2)
             return count_in_row
-
