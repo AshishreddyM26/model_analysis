@@ -5,7 +5,6 @@ import supervision as sv
 
 class ByteTrack_CropCounter:
     
-
     def __init__(self):
         # Initialize constants
         self.horizontal_fov = 118  # degrees
@@ -15,9 +14,9 @@ class ByteTrack_CropCounter:
         self.happ = np.radians(self.horizontal_fov) / self.width  # Horizontal angle per pixel in radians
         self.vapp = np.radians(self.vertical_fov) / self.height  # Vertical angle per pixel in radians
         self.y1 = [1045, 1010, 975, 940, 905, 870, 835, 800, 765, 730, 695, 660, 625, 590, 555, 520, 485, 450, 415, 380, 345, 
-                    310, 275, 240, 205, 170, 135, 100, 65, 30, 0]
+                   310, 275, 240, 205, 170, 135, 100, 65, 30, 0]
         self.y2 = [1115, 1150, 1185, 1220, 1255, 1290, 1325, 1360, 1395, 1430, 1465, 1500, 1535, 1570, 1605, 1640, 1675, 1710, 
-                    1745, 1780, 1815, 1850, 1885, 1920, 1955, 1990, 2025, 2060, 2095, 2130, 2160]
+                   1745, 1780, 1815, 1850, 1885, 1920, 1955, 1990, 2025, 2060, 2095, 2130, 2160]
 
     def calculate_angles(self, xc, yc):
         xcs = np.array(xc)
@@ -34,9 +33,9 @@ class ByteTrack_CropCounter:
         line_fov = line_length_pixels * degrees_per_pixel
         return line_fov
 
-    def calculate_vertical_fov(self, y1, y2):
+    def calculate_vertical_fov(self):
         vertical_fov = []
-        for y1_val, y2_val in zip(y1, y2):
+        for y1_val, y2_val in zip(self.y1, self.y2):
             fov = self.calculate_fov_for_line(self.vertical_fov, self.height, y1_val, y2_val, is_horizontal=False)
             vertical_fov.append(fov)
         return vertical_fov
@@ -66,7 +65,7 @@ class ByteTrack_CropCounter:
         for row_idx in range(1, len(row_data) + 1):
             row_key = f'gt_row{row_idx}'
             gt_counts = []
-            for i in range(len(y1)):
+            for i in range(len(y1_data)):
                 gt_count = self.ret_gt_cropcount(row_data[row_idx - 1], y1_data[i], y2_data[i])
                 gt_counts.append(gt_count)
             results[row_key] = gt_counts
@@ -85,15 +84,7 @@ class ByteTrack_CropCounter:
         return results
 
     def rows_setA(self, wc_gt):
-        """
-        Divide the data into rows based on specified conditions for set A.
-
-        Parameters:
-            wc_gt (DataFrame): DataFrame containing the data to be divided.
-
-        Returns:
-            list: List of DataFrames, each representing a row in set A.
-        """
+        
         row1 = wc_gt[(wc_gt['CenterX'] >= 350) & (wc_gt['CenterX'] <= 725)]
         row2 = wc_gt[(wc_gt['CenterX'] >= 705) & (wc_gt['CenterX'] <= 1100)]
         row3 = wc_gt[(wc_gt['CenterX'] >= 1100) & (wc_gt['CenterX'] <= 1600)]
@@ -112,15 +103,7 @@ class ByteTrack_CropCounter:
         return row1, row2, row3, row4, row5, row6, row7, row8
 
     def rows_setB(self, wc_gt):
-        """
-        Divide the data into rows based on specified conditions for set B.
-
-        Parameters:
-            wc_gt (DataFrame): DataFrame containing the data to be divided.
-
-        Returns:
-            list: List of DataFrames, each representing a row in set B.
-        """
+        
         row1 = wc_gt[(wc_gt['CenterX'] >= 350) & (wc_gt['CenterX'] <= 725)]
         row2 = wc_gt[(wc_gt['CenterX'] >= 725) & (wc_gt['CenterX'] <= 1100)]
         row3 = wc_gt[(wc_gt['CenterX'] >= 1100) & (wc_gt['CenterX'] <= 1600)]
@@ -144,15 +127,15 @@ class ByteTrack_CropCounter:
         df = pd.read_csv(f'C:/Users/ashis/Desktop/THESIS/DT_flow/resources/dataframes{type}/{model}_gt.csv')
         
         if type == 'A':
-            row1, row2, row3, row4, row5, row6, row7, row8 = rows_setA(df)
+            rows = self.rows_setA(df)
         else:
-            row1, row2, row3, row4, row5, row6, row7, row8 = rows_setB(df)
+            rows = self.rows_setB(df)
             
-        gt_df = [row1, row2, row3, row4, row5, row6, row7, row8]
-        gt_counts_results = self.process_gt_counts(gt_df, y1, y2)
+        gt_counts_results = self.process_gt_counts(rows, self.y1, self.y2)
         return gt_counts_results
 
     def get_avg_accuracy(self, accuracy_results1, accuracy_results2):
+        
         average_results = {}
         for key in accuracy_results1:
             list_a = accuracy_results1[key]
@@ -162,6 +145,7 @@ class ByteTrack_CropCounter:
         return average_results
 
     def ret_frame_dets(self, tensor, i):
+        
         xyxy = tensor[i].boxes.xyxy
         conf = tensor[i].boxes.conf
         df1 = pd.DataFrame(xyxy)
@@ -171,6 +155,7 @@ class ByteTrack_CropCounter:
         return final_df
 
     def ret_trimmed_df(self, df_appended, xmin, xmax, y1, y2):
+        
         trim_df = df_appended[((((df_appended.iloc[:, 0] + df_appended.iloc[:, 2]) / 2 >= xmin) &
                                ((df_appended.iloc[:, 0] + df_appended.iloc[:, 2]) / 2 <= xmax)) &
                               (((df_appended.iloc[:, 1] + df_appended.iloc[:, 3]) / 2 >= y1) &
@@ -180,6 +165,7 @@ class ByteTrack_CropCounter:
         return (xyxy, confidence)
 
     def get_count(self, window_listup):
+        
         tracker = sv.ByteTrack(minimum_matching_threshold=.8, track_activation_threshold=.5, lost_track_buffer=24)
         id = []
         count = []
@@ -217,14 +203,15 @@ class ByteTrack_CropCounter:
             results[f'row{i+1}'] = count_in_row
         return results
 
-    def count_crops_rows_78(self, y1_bounds, y2_bounds, xmin_list, xmax_list, limit, model):
+    def count_crops_rows_78(self, y1_bounds, y2_bounds, xmin, xmax, limit, model):
+        
+        count_in_row = []
         if limit > 20:
-            count_in_row = []
             for ymin, ymax in zip(y1_bounds[:limit], y2_bounds[:limit]):
                 results_window = []
                 for j in range(29):
                     df = self.ret_frame_dets(model, j)
-                    frame_detections = self.ret_trimmed_df(df, xmin_list, xmax_list, ymin, ymax)
+                    frame_detections = self.ret_trimmed_df(df, xmin, xmax, ymin, ymax)
                     results_window.append(frame_detections)
                 crops_count1 = self.get_count(results_window)
                 count_in_row.append(crops_count1)
@@ -234,18 +221,16 @@ class ByteTrack_CropCounter:
                     df = self.ret_frame_dets(model, j)
                     df = df[((df.iloc[:, 2] >= 3050) & (df.iloc[:, 2] <= 3400) & (df.iloc[:, 3] <= 2160) & (df.iloc[:, 3] > 1500)) |
                             ((df.iloc[:, 2] >= 3050) & (df.iloc[:, 2] <= 3500) & (df.iloc[:, 3] <= 1500) & (df.iloc[:, 3] >= 660))]
-                    frame_detections = self.ret_trimmed_df(df, xmin_list, xmax_list, ymin, ymax)
+                    frame_detections = self.ret_trimmed_df(df, xmin, xmax, ymin, ymax)
                     results_window.append(frame_detections)
                 crops_count2 = self.get_count(results_window)
                 count_in_row.append(crops_count2)
-            return count_in_row
         else:
-            count_in_row = []
             for ymin, ymax in zip(y1_bounds[:limit], y2_bounds[:limit]):
                 results_window = []
                 for j in range(29):
                     df = self.ret_frame_dets(model, j)
-                    frame_detections = self.ret_trimmed_df(df, xmin_list, xmax_list, ymin, ymax)
+                    frame_detections = self.ret_trimmed_df(df, xmin, xmax, ymin, ymax)
                     results_window.append(frame_detections)
                 crops_count1 = self.get_count(results_window)
                 count_in_row.append(crops_count1)
@@ -255,8 +240,9 @@ class ByteTrack_CropCounter:
                     df = self.ret_frame_dets(model, j)
                     df = df[((df.iloc[:, 2] >= 3420) & (df.iloc[:, 3] > 1500)) |
                             ((df.iloc[:, 2] >= 3493) & (df.iloc[:, 3] <= 1500) & (df.iloc[:, 3] >= 660))]
-                    frame_detections = self.ret_trimmed_df(df, xmin_list, xmax_list, ymin, ymax)
+                    frame_detections = self.ret_trimmed_df(df, xmin, xmax, ymin, ymax)
                     results_window.append(frame_detections)
                 crops_count2 = self.get_count(results_window)
                 count_in_row.append(crops_count2)
-            return count_in_row
+                
+        return count_in_row
