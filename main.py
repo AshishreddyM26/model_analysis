@@ -14,6 +14,10 @@ class ByteTrack_CropCounter:
         self.height = 2160  # pixels
         self.happ = np.radians(self.horizontal_fov) / self.width  # Horizontal angle per pixel in radians
         self.vapp = np.radians(self.vertical_fov) / self.height  # Vertical angle per pixel in radians
+        self.y1 = [1045, 1010, 975, 940, 905, 870, 835, 800, 765, 730, 695, 660, 625, 590, 555, 520, 485, 450, 415, 380, 345, 
+                    310, 275, 240, 205, 170, 135, 100, 65, 30, 0]
+        self.y2 = [1115, 1150, 1185, 1220, 1255, 1290, 1325, 1360, 1395, 1430, 1465, 1500, 1535, 1570, 1605, 1640, 1675, 1710, 
+                    1745, 1780, 1815, 1850, 1885, 1920, 1955, 1990, 2025, 2060, 2095, 2130, 2160]
 
     def calculate_angles(self, xc, yc):
         xcs = np.array(xc)
@@ -74,7 +78,7 @@ class ByteTrack_CropCounter:
             accuracies = []
             gt_row = gt_data[f'gt_row{row_idx}']
             count_row = count_data[f'row{row_idx}']
-            for i in range(len(y1)):
+            for i in range(len(self.y1)):
                 accuracy = self.get_accy(gt_row[i], count_row[i])
                 accuracies.append(accuracy)
             results[f'accuracy{row_idx}'] = accuracies
