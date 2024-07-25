@@ -3,6 +3,11 @@ import pandas as pd
 import supervision as sv
 from ultralytics import YOLO
 import matplotlib.pyplot as plt
+from sort import Sort
+
+# -- customizing trackers - BoT-SORT, ByteTrack, SORT, DeepSORT
+
+# -- customized ByteTrack
 
 class ByteTrack_CropCounter:
     def __init__(self):
@@ -287,6 +292,8 @@ class ByteTrack_CropCounter:
         plt.subplots_adjust(top=0.85)  # Adjust the top to make room for the legend
         plt.show()
 
+# -- customized sort tracker
+ 
 class SORT_CropCounter:
     
     def __init__(self):
