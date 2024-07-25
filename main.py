@@ -295,7 +295,7 @@ class ByteTrack_CropCounter:
         plt.show()
 
 # -- customized sort tracker
- 
+
 class SORT_CropCounter:
     
     def __init__(self):
@@ -311,8 +311,7 @@ class SORT_CropCounter:
         self.y2 = [1115, 1150, 1185, 1220, 1255, 1290, 1325, 1360, 1395, 1430, 1465, 1500, 1535, 1570, 1605, 1640, 1675, 1710, 
                    1745, 1780, 1815, 1850, 1885, 1920, 1955, 1990, 2025, 2060, 2095, 2130, 2160]
 
-    def return_detections(i, tensor, xmin, xmax, y1, y2):
-        
+    def return_detections(self, i, tensor, xmin, xmax, y1, y2):
         xyxy = tensor[i].boxes.xyxy
         conf = tensor[i].boxes.conf
         df1 = pd.DataFrame(xyxy)
@@ -329,25 +328,24 @@ class SORT_CropCounter:
         xyxyc = trim_df.values
         return xyxyc
 
-    def return_detections_row7(i, tensor, xmin, xmax, y1, y2):
+    def return_detections_row7(self, i, tensor, xmin, xmax, y1, y2):
         xyxy = tensor[i].boxes.xyxy
         conf = tensor[i].boxes.conf
         df1 = pd.DataFrame(xyxy)
         df2 = pd.DataFrame(conf)
         df_appended = pd.concat([df1, df2], axis=1)
         df = df_appended[df_appended.iloc[:, 1] >= 660]
-        trim_df = df[((df.iloc[:,2] >= 3050) & (df.iloc[:,2] <= 3300) & (df.iloc[:,3] <= 2160) & (df.iloc[:,3] > 1500)) | ((df.iloc[:,2] >= 3050) & (df.iloc[:,2] <= 3500) & (df.iloc[:,3] <= 1500) & (df.iloc[:,3] >= 660))]
+        trim_df = df[((df.iloc[:, 2] >= 3050) & (df.iloc[:, 2] <= 3300) & (df.iloc[:, 3] <= 2160) & (df.iloc[:, 3] > 1500)) | 
+                     ((df.iloc[:, 2] >= 3050) & (df.iloc[:, 2] <= 3500) & (df.iloc[:, 3] <= 1500) & (df.iloc[:, 3] >= 660))]
         xyxyc = trim_df.values
         return xyxyc
 
-    def process_sort(det_results, xmin, xmax, y1_lim, y2_lim):
-
+    def process_sort(self, det_results, xmin, xmax, y1_lim, y2_lim):
         tracker = Sort(max_age=25, min_hits=5, iou_threshold=.01)  # -- min_hits=5 found through tuning
         ids = []
-        for i in range(29):   # -- len(det_results) - paste this inplace of 29 for bigger videos
-            
+        for i in range(29):   # -- len(det_results) - paste this in place of 29 for bigger videos
             detections = np.empty((0, 5))
-            xyxyc = return_detections(i, det_results, xmin, xmax, y1_lim, y2_lim)
+            xyxyc = self.return_detections(i, det_results, xmin, xmax, y1_lim, y2_lim)
             detections = np.vstack((detections, xyxyc))     # -- updating the detections to the tracker
 
             tracked_objects = tracker.update(detections)
@@ -358,16 +356,12 @@ class SORT_CropCounter:
         crop_count = len(set(ids))
         return crop_count
 
-    def process_sort_row7(det_results, xmin, xmax, y1_lim, y2_lim):
-
+    def process_sort_row7(self, det_results, xmin, xmax, y1_lim, y2_lim):
         tracker = Sort(max_age=25, min_hits=5, iou_threshold=.01)  # -- min_hits=5 found through tuning
-
         ids = []
-        
-        for i in range(29):   # -- len(det_results) - paste this inplace of 29 for bigger videos
-            
+        for i in range(29):   # -- len(det_results) - paste this in place of 29 for bigger videos
             detections = np.empty((0, 5))
-            xyxyc = return_detections_row7(i, det_results, xmin, xmax, y1_lim, y2_lim)
+            xyxyc = self.return_detections_row7(i, det_results, xmin, xmax, y1_lim, y2_lim)
             detections = np.vstack((detections, xyxyc))     # -- updating the detections to the tracker
             tracked_objects = tracker.update(detections)
             for obj in tracked_objects:            
@@ -377,54 +371,40 @@ class SORT_CropCounter:
         crop_count = len(set(ids))
         return crop_count
     
-    def count_crops_rows_1to6(y1_bounds, y2_bounds, xmin_list, xmax_list, model):
-
+    def count_crops_rows_1to6(self, y1_bounds, y2_bounds, xmin_list, xmax_list, model):
         results = {}
         for i in range(len(xmin_list)):
-            
             count_in_row = []   
-            
             for ymin, ymax in zip(y1_bounds, y2_bounds):
-                crops_count = process_sort(model, xmin_list[i], xmax_list[i], ymin, ymax)
+                crops_count = self.process_sort(model, xmin_list[i], xmax_list[i], ymin, ymax)
                 count_in_row.append(crops_count)
-            
             print(f'row{i+1}: {count_in_row}')
             results[f'row{i+1}'] = count_in_row
-            
         return results
     
-    def count_crops_rows_78(y1_bounds, y2_bounds, xmin_list, xmax_list, limit, model):
-
-        # -- here we will write a, if - else cond, where 20 is the threshold for the limit 
+    def count_crops_rows_78(self, y1_bounds, y2_bounds, xmin_list, xmax_list, limit, model):
+        # -- here we will write a, if - else condition, where 20 is the threshold for the limit 
         # -- for row 7 - limit > 20 as the limit is 25
         # -- for row 8 - limit < 20 as the limit is 15
         if limit > 20:
-            
             # -- logic for row 7
-            
             count_in_row = []   
             for ymin, ymax in zip(y1_bounds[:limit], y2_bounds[:limit]):
-                crops_count1 = process_sort(model, xmin_list, xmax_list, ymin, ymax)
+                crops_count1 = self.process_sort(model, xmin_list, xmax_list, ymin, ymax)
                 count_in_row.append(crops_count1)
-                
             for ymin, ymax in zip(y1_bounds[limit:], y2_bounds[limit:]):
-                crops_count2 = process_sort_row7(model, xmin_list, xmax_list, ymin, ymax)
+                crops_count2 = self.process_sort_row7(model, xmin_list, xmax_list, ymin, ymax)
                 count_in_row.append(crops_count2)
-                
             return count_in_row
-            
         else:
-        
-        # -- logic for row 8
-        
+            # -- logic for row 8
             count_in_row = []   
             for ymin, ymax in zip(y1_bounds[:limit], y2_bounds[:limit]):
-                crops_count1 = process_sort(model, xmin_list, xmax_list, ymin, ymax)
+                crops_count1 = self.process_sort(model, xmin_list, xmax_list, ymin, ymax)
                 count_in_row.append(crops_count1)
-                
             for ymin, ymax in zip(y1_bounds[limit:], y2_bounds[limit:]):
-                crops_count2 = process_sort(model, xmin_list, xmax_list, ymin, ymax)
+                crops_count2 = self.process_sort(model, xmin_list, xmax_list, ymin, ymax)
                 count_in_row.append(crops_count2)
-                
             return count_in_row
+
         
