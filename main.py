@@ -3,6 +3,8 @@ import pandas as pd
 import supervision as sv
 from ultralytics import YOLO
 import matplotlib.pyplot as plt
+from mot_utilities import det_utilities
+from mot_utilities import window_analysis
 from sort import Sort
 
 # -- customizing trackers - BoT-SORT, ByteTrack, SORT, DeepSORT
