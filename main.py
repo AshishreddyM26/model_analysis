@@ -252,7 +252,7 @@ class ByteTrack_CropCounter:
         row16['row8'] = row8
         return row16
 
-    def plot_accuracy9(accuracy_results_list, model_names, vertical_fov):
+    def plot_accuracy(accuracy_results_list, model_names, vertical_fov, horz_va1, horz_va2):
         
         threshold = 95  # Set the threshold for accuracy
         fig, axs = plt.subplots(1, 8, figsize=(20, 5))  # Create 1 row and 8 columns of subplots
@@ -271,7 +271,7 @@ class ByteTrack_CropCounter:
 
                 # Plot line segments individually
                 for j in range(len(data_x) - 1):
-                    segment_color = 'red' if data_y[j] >= threshold else color
+                    segment_color = color
                     axs[i].plot([data_x[j], data_x[j+1]], [data_y[j], data_y[j+1]], marker='o', markersize=.7, color=segment_color, linewidth=0.3, label=model_name if j == 0 else "")
 
                 # Draw a horizontal line at the threshold value
@@ -407,4 +407,10 @@ class SORT_CropCounter:
                 count_in_row.append(crops_count2)
             return count_in_row
 
-        
+    def count_crops_for_model(self, model_name, results, xmin_limits, xmax_limits, y1, y2):
+        row16 = self.count_crops_rows_1to6(y1, y2, xmin_limits[:6], xmax_limits[:6], results)
+        row7 = self.count_crops_rows_78(y1, y2, xmin_limits[6], xmax_limits[6], 25 if model_name == "1" else 21, results)
+        row8 = self.count_crops_rows_78(y1, y2, xmin_limits[7], xmax_limits[7], 15, results)
+        row16['row7'] = row7
+        row16['row8'] = row8
+        return row16
