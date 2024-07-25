@@ -286,3 +286,87 @@ class ByteTrack_CropCounter:
         plt.tight_layout()
         plt.subplots_adjust(top=0.85)  # Adjust the top to make room for the legend
         plt.show()
+
+class SORT_CropCounter:
+    
+    def __init__(self):
+        # Initialize constants
+        self.horizontal_fov = 118  # degrees
+        self.vertical_fov = 69.2  # degrees
+        self.width = 3840  # pixels
+        self.height = 2160  # pixels
+        self.happ = np.radians(self.horizontal_fov) / self.width  # Horizontal angle per pixel in radians
+        self.vapp = np.radians(self.vertical_fov) / self.height  # Vertical angle per pixel in radians
+        self.y1 = [1045, 1010, 975, 940, 905, 870, 835, 800, 765, 730, 695, 660, 625, 590, 555, 520, 485, 450, 415, 380, 345, 
+                   310, 275, 240, 205, 170, 135, 100, 65, 30, 0]
+        self.y2 = [1115, 1150, 1185, 1220, 1255, 1290, 1325, 1360, 1395, 1430, 1465, 1500, 1535, 1570, 1605, 1640, 1675, 1710, 
+                   1745, 1780, 1815, 1850, 1885, 1920, 1955, 1990, 2025, 2060, 2095, 2130, 2160]
+
+    def return_detections(i, tensor, xmin, xmax, y1, y2):
+        
+        xyxy = tensor[i].boxes.xyxy
+        conf = tensor[i].boxes.conf
+        df1 = pd.DataFrame(xyxy)
+        df2 = pd.DataFrame(conf)
+        df_appended = pd.concat([df1, df2], axis=1)
+        df = df_appended[df_appended.iloc[:, 1] >= 660] 
+        
+        trim_df = df[
+            ((df.iloc[:, 0] + df.iloc[:, 2]) / 2 >= xmin) & 
+            ((df.iloc[:, 0] + df.iloc[:, 2]) / 2 <= xmax) & 
+            ((df.iloc[:, 1] + df.iloc[:, 3]) / 2 >= y1) & 
+            ((df.iloc[:, 1] + df.iloc[:, 3]) / 2 <= y2)
+        ]  # -- 0-x1, 1-y1, 2-x2, 3-y2
+        xyxyc = trim_df.values
+        return xyxyc
+
+    def return_detections_row7(i, tensor, xmin, xmax, y1, y2):
+        xyxy = tensor[i].boxes.xyxy
+        conf = tensor[i].boxes.conf
+        df1 = pd.DataFrame(xyxy)
+        df2 = pd.DataFrame(conf)
+        df_appended = pd.concat([df1, df2], axis=1)
+        df = df_appended[df_appended.iloc[:, 1] >= 660]
+        trim_df = df[((df.iloc[:,2] >= 3050) & (df.iloc[:,2] <= 3300) & (df.iloc[:,3] <= 2160) & (df.iloc[:,3] > 1500)) | ((df.iloc[:,2] >= 3050) & (df.iloc[:,2] <= 3500) & (df.iloc[:,3] <= 1500) & (df.iloc[:,3] >= 660))]
+        xyxyc = trim_df.values
+        return xyxyc
+
+    def process_sort(det_results, xmin, xmax, y1_lim, y2_lim):
+
+        tracker = Sort(max_age=25, min_hits=5, iou_threshold=.01)  # -- min_hits=5 found through tuning
+        ids = []
+        for i in range(29):   # -- len(det_results) - paste this inplace of 29 for bigger videos
+            detections = np.empty((0, 5))
+            
+            xyxyc = return_detections(i, det_results, xmin, xmax, y1_lim, y2_lim)
+            detections = np.vstack((detections, xyxyc))     # -- updating the detections to the tracker
+
+            tracked_objects = tracker.update(detections)
+
+            for obj in tracked_objects:            
+                _, _, _, _, obj_id = map(int, obj)
+                ids.append(obj_id)
+                
+        crop_count = len(set(ids))
+        return crop_count
+
+    def process_sort_row7(det_results, xmin, xmax, y1_lim, y2_lim):
+
+        tracker = Sort(max_age=25, min_hits=5, iou_threshold=.01)  # -- min_hits=5 found through tuning
+
+        ids = []
+        
+        for i in range(29):   # -- len(det_results) - paste this inplace of 29 for bigger videos
+            detections = np.empty((0, 5))
+            
+            xyxyc = return_detections_row7(i, det_results, xmin, xmax, y1_lim, y2_lim)
+            detections = np.vstack((detections, xyxyc))     # -- updating the detections to the tracker
+
+            tracked_objects = tracker.update(detections)
+
+            for obj in tracked_objects:            
+                _, _, _, _, obj_id = map(int, obj)
+                ids.append(obj_id)
+                
+        crop_count = len(set(ids))
+        return crop_count
