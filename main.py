@@ -415,3 +415,6 @@ class SORT_CropCounter:
         row16['row7'] = row7
         row16['row8'] = row8
         return row16
+    
+class deepSORT_counter:
+    def
