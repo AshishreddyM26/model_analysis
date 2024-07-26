@@ -317,7 +317,7 @@ class SORT_CropCounter:
         df1 = pd.DataFrame(xyxy)
         df2 = pd.DataFrame(conf)
         df_appended = pd.concat([df1, df2], axis=1)
-        df = df_appended[df_appended.iloc[:, 1] >= 660] 
+        df = df_appended[(df_appended.iloc[:, 1] >= 660) & (df_appended.iloc[:, 4] >= .5)] 
         
         trim_df = df[
             ((df.iloc[:, 0] + df.iloc[:, 2]) / 2 >= xmin) & 
@@ -334,14 +334,15 @@ class SORT_CropCounter:
         df1 = pd.DataFrame(xyxy)
         df2 = pd.DataFrame(conf)
         df_appended = pd.concat([df1, df2], axis=1)
-        df = df_appended[df_appended.iloc[:, 1] >= 660]
+        df = df_appended[(df_appended.iloc[:, 1] >= 660) & (df_appended.iloc[:, 4] >= .5)]
+        
         trim_df = df[((df.iloc[:, 2] >= 3050) & (df.iloc[:, 2] <= 3300) & (df.iloc[:, 3] <= 2160) & (df.iloc[:, 3] > 1500)) | 
                      ((df.iloc[:, 2] >= 3050) & (df.iloc[:, 2] <= 3500) & (df.iloc[:, 3] <= 1500) & (df.iloc[:, 3] >= 660))]
         xyxyc = trim_df.values
         return xyxyc
 
     def process_sort(self, det_results, xmin, xmax, y1_lim, y2_lim):
-        tracker = Sort(max_age=25, min_hits=5, iou_threshold=.01)  # -- min_hits=5 found through tuning
+        tracker = Sort(max_age=25, min_hits=6, iou_threshold=.1)  # -- min_hits=5 found through tuning
         ids = []
         for i in range(29):   # -- len(det_results) - paste this in place of 29 for bigger videos
             detections = np.empty((0, 5))
