@@ -416,5 +416,40 @@ class SORT_CropCounter:
         row16['row8'] = row8
         return row16
     
+    
 class deepSORT_counter:
-    def
+    
+    def __init__(self):
+        # Initialize constants
+        self.horizontal_fov = 118  # degrees
+        self.vertical_fov = 69.2  # degrees
+        self.width = 3840  # pixels
+        self.height = 2160  # pixels
+        self.happ = np.radians(self.horizontal_fov) / self.width  # Horizontal angle per pixel in radians
+        self.vapp = np.radians(self.vertical_fov) / self.height  # Vertical angle per pixel in radians
+        self.y1 = [1045, 1010, 975, 940, 905, 870, 835, 800, 765, 730, 695, 660, 625, 590, 555, 520, 485, 450, 415, 380, 345, 
+                   310, 275, 240, 205, 170, 135, 100, 65, 30, 0]
+        self.y2 = [1115, 1150, 1185, 1220, 1255, 1290, 1325, 1360, 1395, 1430, 1465, 1500, 1535, 1570, 1605, 1640, 1675, 1710, 
+                   1745, 1780, 1815, 1850, 1885, 1920, 1955, 1990, 2025, 2060, 2095, 2130, 2160]
+
+def return_detections(i, tensor, xmin, xmax, ymin, ymax):
+    # Extract xywh and confidence from the tensor
+    xywh = tensor[i].boxes.xywh
+    conf = tensor[i].boxes.conf
+    df1 = pd.DataFrame(xywh, columns=['cx', 'cy', 'w', 'h'])
+    df2 = pd.DataFrame(conf, columns=['conf'])
+    df_appended = pd.concat([df1, df2], axis=1)
+    df_appended['x1'] = df_appended['cx'] - df_appended['w'] / 2
+    df_appended['y1'] = df_appended['cy'] - df_appended['h'] / 2
+    df_appended = df_appended[['x1', 'y1', 'w', 'h', 'conf']]
+    df = df_appended[(df_appended['y1'] >= 660) & (df_appended['conf'] >= 0.5)]
+    trim_df = df[
+        ((df['x1'] + (df['w'])/2) >= xmin) &
+        ((df['x1'] + (df['w'])/2) <= xmax) &
+        ((df['y1'] + (df['w'])/2) >= ymin) &
+        ((df['y1'] + (df['w'])/2) <= ymax)
+    ]
+    detections = trim_df.apply(lambda row: ([row['x1'], row['y1'], row['w'], row['h']], row['conf']), axis=1).tolist()
+    
+    return detections
+
