@@ -1,3 +1,4 @@
+import cv2
 import numpy as np
 import pandas as pd
 import supervision as sv
@@ -5,6 +6,7 @@ from ultralytics import YOLO
 import matplotlib.pyplot as plt
 from mot_utilities import det_utilities
 from mot_utilities import window_analysis
+from deep_sort_realtime.deepsort_tracker import DeepSort
 from sort import Sort
 
 # -- customizing trackers - BoT-SORT, ByteTrack, SORT, DeepSORT
@@ -471,7 +473,7 @@ class deepSORT_counter:
         detections = trim_df.apply(lambda row: ([row['x1'], row['y1'], row['w'], row['h']], row['conf']), axis=1).tolist()
         return detections
     
-    def process_deepsort(source, det_results, xmin, xmax, y1_lim, y2_lim):
+    def process_deepsort(self, source, det_results, xmin, xmax, y1_lim, y2_lim):
     
         tracker = DeepSort(max_age=25, n_init=3, nms_max_overlap=.5, max_cosine_distance=0.18, max_iou_distance=0.9)
         cap = cv2.VideoCapture(source)
@@ -487,7 +489,7 @@ class deepSORT_counter:
                 if not ret:
                     break
 
-                detections = return_detections(frame_number, det_results, xmin, xmax, y1_lim, y2_lim)
+                detections = self.return_detections(frame_number, det_results, xmin, xmax, y1_lim, y2_lim)
                 tracked_objects = tracker.update_tracks(detections, frame=img)
 
                 for track in tracked_objects:
@@ -504,7 +506,7 @@ class deepSORT_counter:
         crop_count = len(set(ids))
         return crop_count
     
-    def process_deepsort_row7(source, det_results, xmin, xmax, y1_lim, y2_lim):
+    def process_deepsort_row7(self, source, det_results, xmin, xmax, y1_lim, y2_lim):
         
         tracker = DeepSort(max_age=25, n_init=3, nms_max_overlap=.5, max_cosine_distance=0.18, max_iou_distance=0.9)
         cap = cv2.VideoCapture(source)
@@ -520,7 +522,7 @@ class deepSORT_counter:
                 if not ret:
                     break
 
-                detections = return_detections_row7(frame_number, det_results, xmin, xmax, y1_lim, y2_lim)
+                detections = self.return_detections_row7(frame_number, det_results, xmin, xmax, y1_lim, y2_lim)
                 tracked_objects = tracker.update_tracks(detections, frame=img)
 
                 for track in tracked_objects:
@@ -536,3 +538,49 @@ class deepSORT_counter:
         cap.release()
         crop_count = len(set(ids))
         return crop_count
+    
+    def count_crops_rows_1to6(self, y1_bounds, y2_bounds, xmin_list, xmax_list, model, source):
+        results = {}
+        for i in range(len(xmin_list)):
+            count_in_row = []   
+            for ymin, ymax in zip(y1_bounds, y2_bounds):
+                crops_count = self.process_deepsort(source, model, xmin_list[i], xmax_list[i], ymin, ymax)
+                count_in_row.append(crops_count)
+            print(f'row{i+1}: {count_in_row}')
+            results[f'row{i+1}'] = count_in_row
+        return results
+
+    def count_crops_rows_78(self, y1_bounds, y2_bounds, xmin_list, xmax_list, limit, model, source):
+        # -- here we will write a, if - else condition, where 20 is the threshold for the limit 
+        # -- for row 7 - limit > 20 as the limit is 25
+        # -- for row 8 - limit < 20 as the limit is 15
+        if limit > 20:
+            # -- logic for row 7
+            count_in_row = []   
+            for ymin, ymax in zip(y1_bounds[:limit], y2_bounds[:limit]):
+                crops_count1 = self.process_deepsort(source, model, xmin_list, xmax_list, ymin, ymax)
+                count_in_row.append(crops_count1)
+            for ymin, ymax in zip(y1_bounds[limit:], y2_bounds[limit:]):
+                crops_count2 = self.process_deepsort_row7(source, model, xmin_list, xmax_list, ymin, ymax)
+                count_in_row.append(crops_count2)
+            return count_in_row
+        else:
+            # -- logic for row 8
+            count_in_row = []   
+            for ymin, ymax in zip(y1_bounds[:limit], y2_bounds[:limit]):
+                crops_count1 = self.process_deepsort(source, model, xmin_list, xmax_list, ymin, ymax)
+                count_in_row.append(crops_count1)
+            for ymin, ymax in zip(y1_bounds[limit:], y2_bounds[limit:]):
+                crops_count2 = self.process_deepsort(source, model, xmin_list, xmax_list, ymin, ymax)
+                count_in_row.append(crops_count2)
+            return count_in_row
+
+    def count_crops_for_model(self, model_name, results, xmin_limits, xmax_limits, y1, y2):
+        row16 = self.count_crops_rows_1to6(y1, y2, xmin_limits[:6], xmax_limits[:6], results)
+        row7 = self.count_crops_rows_78(y1, y2, xmin_limits[6], xmax_limits[6], 25 if model_name == "1" else 21, results)
+        row8 = self.count_crops_rows_78(y1, y2, xmin_limits[7], xmax_limits[7], 15, results)
+        row16['row7'] = row7
+        row16['row8'] = row8
+        return row16
+    
+    
