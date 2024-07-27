@@ -432,24 +432,107 @@ class deepSORT_counter:
         self.y2 = [1115, 1150, 1185, 1220, 1255, 1290, 1325, 1360, 1395, 1430, 1465, 1500, 1535, 1570, 1605, 1640, 1675, 1710, 
                    1745, 1780, 1815, 1850, 1885, 1920, 1955, 1990, 2025, 2060, 2095, 2130, 2160]
 
-def return_detections(i, tensor, xmin, xmax, ymin, ymax):
-    # Extract xywh and confidence from the tensor
-    xywh = tensor[i].boxes.xywh
-    conf = tensor[i].boxes.conf
-    df1 = pd.DataFrame(xywh, columns=['cx', 'cy', 'w', 'h'])
-    df2 = pd.DataFrame(conf, columns=['conf'])
-    df_appended = pd.concat([df1, df2], axis=1)
-    df_appended['x1'] = df_appended['cx'] - df_appended['w'] / 2
-    df_appended['y1'] = df_appended['cy'] - df_appended['h'] / 2
-    df_appended = df_appended[['x1', 'y1', 'w', 'h', 'conf']]
-    df = df_appended[(df_appended['y1'] >= 660) & (df_appended['conf'] >= 0.5)]
-    trim_df = df[
-        ((df['x1'] + (df['w'])/2) >= xmin) &
-        ((df['x1'] + (df['w'])/2) <= xmax) &
-        ((df['y1'] + (df['w'])/2) >= ymin) &
-        ((df['y1'] + (df['w'])/2) <= ymax)
-    ]
-    detections = trim_df.apply(lambda row: ([row['x1'], row['y1'], row['w'], row['h']], row['conf']), axis=1).tolist()
-    
-    return detections
+    def return_detections(i, tensor, xmin, xmax, ymin, ymax):
+        # Extract xywh and confidence from the tensor
+        xywh = tensor[i].boxes.xywh
+        conf = tensor[i].boxes.conf
+        df1 = pd.DataFrame(xywh, columns=['cx', 'cy', 'w', 'h'])
+        df2 = pd.DataFrame(conf, columns=['conf'])
+        df_appended = pd.concat([df1, df2], axis=1)
+        df_appended['x1'] = df_appended['cx'] - df_appended['w'] / 2
+        df_appended['y1'] = df_appended['cy'] - df_appended['h'] / 2
+        df_appended = df_appended[['x1', 'y1', 'w', 'h', 'conf']]
+        df = df_appended[(df_appended['y1'] >= 660) & (df_appended['conf'] >= 0.5)]
+        trim_df = df[
+            ((df['x1'] + (df['w'])/2) >= xmin) &
+            ((df['x1'] + (df['w'])/2) <= xmax) &
+            ((df['y1'] + (df['w'])/2) >= ymin) &
+            ((df['y1'] + (df['w'])/2) <= ymax)
+        ]
+        detections = trim_df.apply(lambda row: ([row['x1'], row['y1'], row['w'], row['h']], row['conf']), axis=1).tolist()
+        
+        return detections
 
+    def return_detections_row7(i, tensor, xmin, xmax, ymin, ymax):
+        # Extract xywh and confidence from the tensor
+        xywh = tensor[i].boxes.xywh
+        conf = tensor[i].boxes.conf
+        df1 = pd.DataFrame(xywh, columns=['cx', 'cy', 'w', 'h'])
+        df2 = pd.DataFrame(conf, columns=['conf'])
+        df_appended = pd.concat([df1, df2], axis=1)
+        df_appended['x1'] = df_appended['cx'] - df_appended['w'] / 2
+        df_appended['y1'] = df_appended['cy'] - df_appended['h'] / 2
+        df_appended = df_appended[['x1', 'y1', 'w', 'h', 'conf']]
+        df = df_appended[(df_appended['y1'] >= 660) & (df_appended['conf'] >= 0.5)]
+        
+        trim_df = df[((df.iloc['x1'] >= 3050) & (df.iloc['x1'] <= 3300) & (df.iloc['y1'] <= 2160) & (df.iloc['y1'] > 1500)) | 
+                        ((df.iloc['x1'] >= 3050) & (df.iloc['x1'] <= 3500) & (df.iloc['y1'] <= 1500) & (df.iloc['y1'] >= 660))]
+        
+        detections = trim_df.apply(lambda row: ([row['x1'], row['y1'], row['w'], row['h']], row['conf']), axis=1).tolist()
+        return detections
+    
+    def process_deepsort(source, det_results, xmin, xmax, y1_lim, y2_lim):
+    
+        tracker = DeepSort(max_age=25, n_init=3, nms_max_overlap=.5, max_cosine_distance=0.18, max_iou_distance=0.9)
+        cap = cv2.VideoCapture(source)
+        if not cap.isOpened():
+            raise ValueError(f"Error: Video source {source} not opened.")
+        ids = []
+        
+        for i in range(29):
+            frame_number = i
+
+            while True:
+                ret, img = cap.read()
+                if not ret:
+                    break
+
+                detections = return_detections(frame_number, det_results, xmin, xmax, y1_lim, y2_lim)
+                tracked_objects = tracker.update_tracks(detections, frame=img)
+
+                for track in tracked_objects:
+                    if not track.is_confirmed() or track.time_since_update > 1:
+                        continue
+                    obj_id = track.track_id
+                    ids.append(obj_id)
+                frame_number += 1
+                
+                if frame_number >= 29:  # -- delete this for videos greater than 1 second
+                    break
+
+        cap.release()
+        crop_count = len(set(ids))
+        return crop_count
+    
+    def process_deepsort_row7(source, det_results, xmin, xmax, y1_lim, y2_lim):
+        
+        tracker = DeepSort(max_age=25, n_init=3, nms_max_overlap=.5, max_cosine_distance=0.18, max_iou_distance=0.9)
+        cap = cv2.VideoCapture(source)
+        if not cap.isOpened():
+            raise ValueError(f"Error: Video source {source} not opened.")
+        ids = []
+        
+        for i in range(29):
+            frame_number = i
+
+            while True:
+                ret, img = cap.read()
+                if not ret:
+                    break
+
+                detections = return_detections_row7(frame_number, det_results, xmin, xmax, y1_lim, y2_lim)
+                tracked_objects = tracker.update_tracks(detections, frame=img)
+
+                for track in tracked_objects:
+                    if not track.is_confirmed() or track.time_since_update > 1:
+                        continue
+                    obj_id = track.track_id
+                    ids.append(obj_id)
+                frame_number += 1
+                
+                if frame_number >= 29:  # -- delete this for videos greater than 1 second
+                    break
+
+        cap.release()
+        crop_count = len(set(ids))
+        return crop_count
