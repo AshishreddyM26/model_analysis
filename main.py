@@ -419,10 +419,9 @@ class SORT_CropCounter:
         return row16
     
     
-class deepSORT_counter:
+class DeepSORTCounter:
     
     def __init__(self):
-        # Initialize constants
         self.horizontal_fov = 118  # degrees
         self.vertical_fov = 69.2  # degrees
         self.width = 3840  # pixels
@@ -434,8 +433,7 @@ class deepSORT_counter:
         self.y2 = [1115, 1150, 1185, 1220, 1255, 1290, 1325, 1360, 1395, 1430, 1465, 1500, 1535, 1570, 1605, 1640, 1675, 1710, 
                    1745, 1780, 1815, 1850, 1885, 1920, 1955, 1990, 2025, 2060, 2095, 2130, 2160]
 
-    def return_detections(i, tensor, xmin, xmax, ymin, ymax):
-        # Extract xywh and confidence from the tensor
+    def extract_detections(self, i, tensor, xmin, xmax, ymin, ymax):
         xywh = tensor[i].boxes.xywh
         conf = tensor[i].boxes.conf
         df1 = pd.DataFrame(xywh, columns=['cx', 'cy', 'w', 'h'])
@@ -445,18 +443,18 @@ class deepSORT_counter:
         df_appended['y1'] = df_appended['cy'] - df_appended['h'] / 2
         df_appended = df_appended[['x1', 'y1', 'w', 'h', 'conf']]
         df = df_appended[(df_appended['y1'] >= 660) & (df_appended['conf'] >= 0.5)]
+        
         trim_df = df[
-            ((df['x1'] + (df['w'])/2) >= xmin) &
-            ((df['x1'] + (df['w'])/2) <= xmax) &
-            ((df['y1'] + (df['w'])/2) >= ymin) &
-            ((df['y1'] + (df['w'])/2) <= ymax)
+            ((df['x1'] + df['w'] / 2) >= xmin) &
+            ((df['x1'] + df['w'] / 2) <= xmax) &
+            ((df['y1'] + df['h'] / 2) >= ymin) &
+            ((df['y1'] + df['h'] / 2) <= ymax)
         ]
         detections = trim_df.apply(lambda row: ([row['x1'], row['y1'], row['w'], row['h']], row['conf']), axis=1).tolist()
         
         return detections
 
-    def return_detections_row7(i, tensor, xmin, xmax, ymin, ymax):
-        # Extract xywh and confidence from the tensor
+    def extract_detections_row7(self, i, tensor, xmin, xmax, ymin, ymax):
         xywh = tensor[i].boxes.xywh
         conf = tensor[i].boxes.conf
         df1 = pd.DataFrame(xywh, columns=['cx', 'cy', 'w', 'h'])
@@ -467,74 +465,41 @@ class deepSORT_counter:
         df_appended = df_appended[['x1', 'y1', 'w', 'h', 'conf']]
         df = df_appended[(df_appended['y1'] >= 660) & (df_appended['conf'] >= 0.5)]
         
-        trim_df = df[((df.iloc['x1'] >= 3050) & (df.iloc['x1'] <= 3300) & (df.iloc['y1'] <= 2160) & (df.iloc['y1'] > 1500)) | 
-                        ((df.iloc['x1'] >= 3050) & (df.iloc['x1'] <= 3500) & (df.iloc['y1'] <= 1500) & (df.iloc['y1'] >= 660))]
+        trim_df = df[
+            ((df['x1'] >= 3050) & (df['x1'] <= 3300) & (df['y1'] <= 2160) & (df['y1'] > 1500)) | 
+            ((df['x1'] >= 3050) & (df['x1'] <= 3500) & (df['y1'] <= 1500) & (df['y1'] >= 660))
+        ]
         
         detections = trim_df.apply(lambda row: ([row['x1'], row['y1'], row['w'], row['h']], row['conf']), axis=1).tolist()
         return detections
-    
-    def process_deepsort(self, source, det_results, xmin, xmax, y1_lim, y2_lim):
-    
+
+    def process_deepsort(self, source, det_results, xmin, xmax, y1_lim, y2_lim, row7=False):
         tracker = DeepSort(max_age=25, n_init=3, nms_max_overlap=.5, max_cosine_distance=0.18, max_iou_distance=0.9)
         cap = cv2.VideoCapture(source)
         if not cap.isOpened():
             raise ValueError(f"Error: Video source {source} not opened.")
         ids = []
         
-        for i in range(29):
-            frame_number = i
+        frame_number = 0
+        while frame_number < 29:  # Change this condition for videos longer than 1 second
+            ret, img = cap.read()
+            if not ret:
+                break
 
-            while True:
-                ret, img = cap.read()
-                if not ret:
-                    break
+            if row7:
+                detections = self.extract_detections_row7(frame_number, det_results, xmin, xmax, y1_lim, y2_lim)
+            else:
+                detections = self.extract_detections(frame_number, det_results, xmin, xmax, y1_lim, y2_lim)
+            
+            tracked_objects = tracker.update_tracks(detections, frame=img)
 
-                detections = self.return_detections(frame_number, det_results, xmin, xmax, y1_lim, y2_lim)
-                tracked_objects = tracker.update_tracks(detections, frame=img)
-
-                for track in tracked_objects:
-                    if not track.is_confirmed() or track.time_since_update > 1:
-                        continue
-                    obj_id = track.track_id
-                    ids.append(obj_id)
-                frame_number += 1
+            for track in tracked_objects:
+                if not track.is_confirmed() or track.time_since_update > 1:
+                    continue
+                obj_id = track.track_id
+                ids.append(obj_id)
+            frame_number += 1
                 
-                if frame_number >= 29:  # -- delete this for videos greater than 1 second
-                    break
-
-        cap.release()
-        crop_count = len(set(ids))
-        return crop_count
-    
-    def process_deepsort_row7(self, source, det_results, xmin, xmax, y1_lim, y2_lim):
-        
-        tracker = DeepSort(max_age=25, n_init=3, nms_max_overlap=.5, max_cosine_distance=0.18, max_iou_distance=0.9)
-        cap = cv2.VideoCapture(source)
-        if not cap.isOpened():
-            raise ValueError(f"Error: Video source {source} not opened.")
-        ids = []
-        
-        for i in range(29):
-            frame_number = i
-
-            while True:
-                ret, img = cap.read()
-                if not ret:
-                    break
-
-                detections = self.return_detections_row7(frame_number, det_results, xmin, xmax, y1_lim, y2_lim)
-                tracked_objects = tracker.update_tracks(detections, frame=img)
-
-                for track in tracked_objects:
-                    if not track.is_confirmed() or track.time_since_update > 1:
-                        continue
-                    obj_id = track.track_id
-                    ids.append(obj_id)
-                frame_number += 1
-                
-                if frame_number >= 29:  # -- delete this for videos greater than 1 second
-                    break
-
         cap.release()
         crop_count = len(set(ids))
         return crop_count
@@ -551,21 +516,16 @@ class deepSORT_counter:
         return results
 
     def count_crops_rows_78(self, y1_bounds, y2_bounds, xmin_list, xmax_list, limit, model, source):
-        # -- here we will write a, if - else condition, where 20 is the threshold for the limit 
-        # -- for row 7 - limit > 20 as the limit is 25
-        # -- for row 8 - limit < 20 as the limit is 15
         if limit > 20:
-            # -- logic for row 7
             count_in_row = []   
             for ymin, ymax in zip(y1_bounds[:limit], y2_bounds[:limit]):
                 crops_count1 = self.process_deepsort(source, model, xmin_list, xmax_list, ymin, ymax)
                 count_in_row.append(crops_count1)
             for ymin, ymax in zip(y1_bounds[limit:], y2_bounds[limit:]):
-                crops_count2 = self.process_deepsort_row7(source, model, xmin_list, xmax_list, ymin, ymax)
+                crops_count2 = self.process_deepsort(source, model, xmin_list, xmax_list, ymin, ymax, row7=True)
                 count_in_row.append(crops_count2)
             return count_in_row
         else:
-            # -- logic for row 8
             count_in_row = []   
             for ymin, ymax in zip(y1_bounds[:limit], y2_bounds[:limit]):
                 crops_count1 = self.process_deepsort(source, model, xmin_list, xmax_list, ymin, ymax)
@@ -574,13 +534,12 @@ class deepSORT_counter:
                 crops_count2 = self.process_deepsort(source, model, xmin_list, xmax_list, ymin, ymax)
                 count_in_row.append(crops_count2)
             return count_in_row
-
-    def count_crops_for_model(self, model_name, results, xmin_limits, xmax_limits, y1, y2):
-        row16 = self.count_crops_rows_1to6(y1, y2, xmin_limits[:6], xmax_limits[:6], results)
-        row7 = self.count_crops_rows_78(y1, y2, xmin_limits[6], xmax_limits[6], 25 if model_name == "1" else 21, results)
-        row8 = self.count_crops_rows_78(y1, y2, xmin_limits[7], xmax_limits[7], 15, results)
-        row16['row7'] = row7
-        row16['row8'] = row8
-        return row16
     
+    def count_crops_for_model(self, model_name, results, xmin_limits, xmax_limits, y1, y2):
+        results = self.count_crops_rows_1to6(y1, y2, xmin_limits[:6], xmax_limits[:6], results, model_name)
+        row7 = self.count_crops_rows_78(y1, y2, xmin_limits[6], xmax_limits[6], 25 if model_name == "1" else 21, results, model_name)
+        row8 = self.count_crops_rows_78(y1, y2, xmin_limits[7], xmax_limits[7], 15, results, model_name)
+        results['row7'] = row7
+        results['row8'] = row8
+        return results
     
