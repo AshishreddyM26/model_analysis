@@ -536,10 +536,10 @@ class DeepSORTCounter:
             return count_in_row
     
     def count_crops_for_model(self, results, xmin_limits, xmax_limits, y1, y2, source):
-        row16 = self.count_crops_rows_1to6(y1, y2, xmin_limits[:6], xmax_limits[:6], results, source)
+        generated_results = self.count_crops_rows_1to6(y1, y2, xmin_limits[:6], xmax_limits[:6], results, source)
         row7 = self.count_crops_rows_78(y1, y2, xmin_limits[6], xmax_limits[6], 25, results, source)
         row8 = self.count_crops_rows_78(y1, y2, xmin_limits[7], xmax_limits[7], 15, results, source)
-        row16['row7'] = row7
-        row16['row8'] = row8
-        return row16
+        generated_results['row7'] = row7
+        generated_results['row8'] = row8
+        return generated_results
     
