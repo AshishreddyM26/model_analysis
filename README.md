@@ -4,4 +4,4 @@ Here I am attempting a novel approach to Computer Vision's Multi-Object Tracking
 
 Example: 
 
-Lets say, I am going to run 9 different region of interest in the frame. For this, I need to run detection model and tracker for 9 times, which consumes lot of memery and time as well. But here, we run the object detection model once and then trimming those results according to our region of interest of the video. Then pass these trimmed detections frame by frame to the tracker. This process is faster and efficient in saving time and memory.
+Lets say, I am going to run 9 different regions in the frame. For this, I need to run detection model and tracker for each region. But here, we run the object detection model once and then trimming those results according to our region of interest of the video. Then passing these trimmed detections frame by frame to the tracker. This process is faster and efficient in saving time and memory.
