@@ -1,7 +1,14 @@
-# model_analysis
+# Model Analysis
 
-Here I am attempting a novel approach to Computer Vision's Multi-Object Tracking capabilities, the traditional method is to detect by tracking but here, seperating the detection from detection by tracking in order to save time and memory (given that you are analysing a video but with multiple region of interests), if you are analysing any computer vision project for object detection and tracking, we have to run the detection model and tracker, multiple times. This consumes lot of time and memory as well. To overcome this issue, we can pass the required detections to the tracker and perform the analysis faster than the existing approach. This process needs to perform the object detection only once on our source video, then passing the required region of interest objects to the tracker for the further analysis.
+This project explores a novel approach to enhancing Multi-Object Tracking capabilities in Computer Vision by separating detection from tracking. This method aims to save time and memory, particularly when analyzing videos with multiple regions of interest.
 
-Example: 
+## Key Concept
+Traditionally, detection by tracking is performed, which involves running the detection model and tracker multiple times for each region of interest. This process is time-consuming and memory-intensive.
 
-Lets say, I am going to run 9 different regions in the frame. For this, I need to run detection model and tracker for each region. But here, we run the object detection model once and then trimming those results according to our region of interest of the video. Then passing these trimmed detections frame by frame to the tracker. This process is faster and efficient in saving time and memory.
+### Proposed Approach
+1. Single Detection Pass: Perform object detection only once on the source video.
+2. Trim Results: Trim the detection results according to the regions of interest in the video.
+3. Efficient Tracking: Pass the trimmed detections to the tracker for further analysis.
+
+### Example
+If you need to analyze 9 different regions in a frame, traditionally, you would run the detection model and tracker for each region. With this approach, you run the detection model once, trim the results for each region, and then pass these trimmed detections to the tracker. This method is faster and more efficient, saving both time and memory.
